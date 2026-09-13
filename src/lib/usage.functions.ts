@@ -117,11 +117,38 @@ export const getUsageSummary = createServerFn({ method: "GET" })
       m.spentCredits += spentHere;
       models.set(r.model, m);
 
+      const dayKey = String(r.created_at ?? "").slice(0, 10) || "unknown";
+      const d =
+        days.get(dayKey) ??
+        { day: dayKey, calls: 0, hits: 0, hitRate: 0, spentCredits: 0, savedCredits: 0 };
+      d.calls += 1;
+      if (r.cached) d.hits += 1;
+      d.spentCredits += spentHere;
+      d.savedCredits += savedHere;
+      days.set(dayKey, d);
+
       calls += 1;
       if (r.cached) hits += 1;
       if (!r.ok) errors += 1;
       spent += spentHere;
       saved += savedHere;
+      promptTokens += r.prompt_tokens ?? 0;
+      completionTokens += r.completion_tokens ?? 0;
+    }
+
+    // Popular concepts: demand for generated code examples in the same window.
+    const concepts = new Map<string, ConceptRow>();
+    const { data: jobs } = await supabase
+      .from("code_gen_jobs")
+      .select("concept_tag, concept_label, status, created_at")
+      .gte("created_at", since)
+      .limit(2000);
+    for (const j of jobs ?? []) {
+      const key = j.concept_label || j.concept_tag;
+      const c = concepts.get(key) ?? { concept: key, runs: 0, saved: 0 };
+      c.runs += 1;
+      if (j.status === "saved" || j.status === "done" || j.status === "complete") c.saved += 1;
+      concepts.set(key, c);
     }
 
     const byTask = [...tasks.values()]
