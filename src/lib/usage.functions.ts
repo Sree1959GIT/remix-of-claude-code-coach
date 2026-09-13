@@ -67,7 +67,7 @@ export const getUsageSummary = createServerFn({ method: "GET" })
     const { data: rows, error } = await supabase
       .from("ai_usage_events")
       .select(
-        "task, model, cached, ok, prompt_tokens, completion_tokens, estimated_credits, saved_credits",
+        "task, model, cached, ok, prompt_tokens, completion_tokens, estimated_credits, saved_credits, created_at",
       )
       .gte("created_at", since)
       .limit(5000);
