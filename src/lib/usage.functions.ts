@@ -20,6 +20,17 @@ export type UsageTaskRow = {
   errors: number;
 };
 
+export type UsageDay = {
+  day: string;
+  calls: number;
+  hits: number;
+  hitRate: number;
+  spentCredits: number;
+  savedCredits: number;
+};
+
+export type ConceptRow = { concept: string; runs: number; saved: number };
+
 export type UsageSummary = {
   windowDays: number;
   calls: number;
@@ -29,8 +40,12 @@ export type UsageSummary = {
   spentCredits: number;
   savedCredits: number;
   errors: number;
+  promptTokens: number;
+  completionTokens: number;
   byTask: UsageTaskRow[];
   byModel: { model: string; calls: number; spentCredits: number }[];
+  byDay: UsageDay[];
+  topConcepts: ConceptRow[];
 };
 
 const input = z.object({ days: z.number().int().min(1).max(90).default(30) });
@@ -52,7 +67,7 @@ export const getUsageSummary = createServerFn({ method: "GET" })
     const { data: rows, error } = await supabase
       .from("ai_usage_events")
       .select(
-        "task, model, cached, ok, prompt_tokens, completion_tokens, estimated_credits, saved_credits",
+        "task, model, cached, ok, prompt_tokens, completion_tokens, estimated_credits, saved_credits, created_at",
       )
       .gte("created_at", since)
       .limit(5000);
@@ -60,11 +75,14 @@ export const getUsageSummary = createServerFn({ method: "GET" })
 
     const tasks = new Map<string, UsageTaskRow>();
     const models = new Map<string, { model: string; calls: number; spentCredits: number }>();
+    const days = new Map<string, UsageDay>();
     let calls = 0;
     let hits = 0;
     let spent = 0;
     let saved = 0;
     let errors = 0;
+    let promptTokens = 0;
+    let completionTokens = 0;
 
     for (const r of rows ?? []) {
       const row =
@@ -99,11 +117,38 @@ export const getUsageSummary = createServerFn({ method: "GET" })
       m.spentCredits += spentHere;
       models.set(r.model, m);
 
+      const dayKey = String(r.created_at ?? "").slice(0, 10) || "unknown";
+      const d =
+        days.get(dayKey) ??
+        { day: dayKey, calls: 0, hits: 0, hitRate: 0, spentCredits: 0, savedCredits: 0 };
+      d.calls += 1;
+      if (r.cached) d.hits += 1;
+      d.spentCredits += spentHere;
+      d.savedCredits += savedHere;
+      days.set(dayKey, d);
+
       calls += 1;
       if (r.cached) hits += 1;
       if (!r.ok) errors += 1;
       spent += spentHere;
       saved += savedHere;
+      promptTokens += r.prompt_tokens ?? 0;
+      completionTokens += r.completion_tokens ?? 0;
+    }
+
+    // Popular concepts: demand for generated code examples in the same window.
+    const concepts = new Map<string, ConceptRow>();
+    const { data: jobs } = await supabase
+      .from("code_gen_jobs")
+      .select("concept_tag, concept_label, status, created_at")
+      .gte("created_at", since)
+      .limit(2000);
+    for (const j of jobs ?? []) {
+      const key = j.concept_label || j.concept_tag;
+      const c = concepts.get(key) ?? { concept: key, runs: 0, saved: 0 };
+      c.runs += 1;
+      if (j.status === "saved" || j.status === "done" || j.status === "complete") c.saved += 1;
+      concepts.set(key, c);
     }
 
     const byTask = [...tasks.values()]
@@ -124,9 +169,20 @@ export const getUsageSummary = createServerFn({ method: "GET" })
       spentCredits: round(spent),
       savedCredits: round(saved),
       errors,
+      promptTokens,
+      completionTokens,
       byTask,
       byModel: [...models.values()]
         .map((m) => ({ ...m, spentCredits: round(m.spentCredits) }))
         .sort((a, b) => b.spentCredits - a.spentCredits),
+      byDay: [...days.values()]
+        .map((d) => ({
+          ...d,
+          hitRate: d.calls ? Math.round((d.hits / d.calls) * 1000) / 10 : 0,
+          spentCredits: round(d.spentCredits),
+          savedCredits: round(d.savedCredits),
+        }))
+        .sort((a, b) => a.day.localeCompare(b.day)),
+      topConcepts: [...concepts.values()].sort((a, b) => b.runs - a.runs).slice(0, 12),
     };
   });

@@ -35,6 +35,7 @@ import { CodeGenPanel } from "@/components/admin/CodeGenPanel";
 import { SpiderPanel } from "@/components/admin/SpiderPanel";
 import { DefragPanel } from "@/components/admin/DefragPanel";
 import { ParityPanel } from "@/components/admin/ParityPanel";
+import { UsagePanel } from "@/components/admin/UsagePanel";
 
 
 
@@ -70,6 +71,7 @@ const SECTIONS: { code: string; title: string; body: string; status: "live" | "p
   { code: "11", title: "Difficulty calibration", body: "Recompute question difficulty from live first-attempt accuracy.", status: "live" },
   { code: "12", title: "Corpus defrag", body: "Consolidate fragmented library sections, strip empty artifacts and re-embed.", status: "live" },
   { code: "13", title: "Coverage parity", body: "Question bank composition mapped against the exam blueprint weights.", status: "live" },
+  { code: "14", title: "AI usage board", body: "Cache savings, token economics and the concepts learners generate most.", status: "live" },
 ];
 
 
@@ -941,6 +943,15 @@ function AdminPage() {
                 under-served, by how many questions, and how their difficulty mix and citations stack up.
               </p>
               <ParityPanel />
+            </section>
+
+            <section className="mt-10">
+              <h2 className="font-mono text-sm font-bold uppercase tracking-tight">16 · AI_Usage_Board</h2>
+              <p className="mt-1 font-mono text-[11px] text-muted-foreground">
+                What the AI actually costs: cache hit rate and credits saved by reused answers, spend and token volume
+                per task and model, and the concepts learners ask for most.
+              </p>
+              <UsagePanel />
             </section>
 
 
