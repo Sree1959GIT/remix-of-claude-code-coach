@@ -75,11 +75,14 @@ export const getUsageSummary = createServerFn({ method: "GET" })
 
     const tasks = new Map<string, UsageTaskRow>();
     const models = new Map<string, { model: string; calls: number; spentCredits: number }>();
+    const days = new Map<string, UsageDay>();
     let calls = 0;
     let hits = 0;
     let spent = 0;
     let saved = 0;
     let errors = 0;
+    let promptTokens = 0;
+    let completionTokens = 0;
 
     for (const r of rows ?? []) {
       const row =
