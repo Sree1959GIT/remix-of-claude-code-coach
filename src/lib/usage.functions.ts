@@ -169,9 +169,20 @@ export const getUsageSummary = createServerFn({ method: "GET" })
       spentCredits: round(spent),
       savedCredits: round(saved),
       errors,
+      promptTokens,
+      completionTokens,
       byTask,
       byModel: [...models.values()]
         .map((m) => ({ ...m, spentCredits: round(m.spentCredits) }))
         .sort((a, b) => b.spentCredits - a.spentCredits),
+      byDay: [...days.values()]
+        .map((d) => ({
+          ...d,
+          hitRate: d.calls ? Math.round((d.hits / d.calls) * 1000) / 10 : 0,
+          spentCredits: round(d.spentCredits),
+          savedCredits: round(d.savedCredits),
+        }))
+        .sort((a, b) => a.day.localeCompare(b.day)),
+      topConcepts: [...concepts.values()].sort((a, b) => b.runs - a.runs).slice(0, 12),
     };
   });
