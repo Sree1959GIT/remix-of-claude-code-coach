@@ -20,6 +20,17 @@ export type UsageTaskRow = {
   errors: number;
 };
 
+export type UsageDay = {
+  day: string;
+  calls: number;
+  hits: number;
+  hitRate: number;
+  spentCredits: number;
+  savedCredits: number;
+};
+
+export type ConceptRow = { concept: string; runs: number; saved: number };
+
 export type UsageSummary = {
   windowDays: number;
   calls: number;
@@ -29,8 +40,12 @@ export type UsageSummary = {
   spentCredits: number;
   savedCredits: number;
   errors: number;
+  promptTokens: number;
+  completionTokens: number;
   byTask: UsageTaskRow[];
   byModel: { model: string; calls: number; spentCredits: number }[];
+  byDay: UsageDay[];
+  topConcepts: ConceptRow[];
 };
 
 const input = z.object({ days: z.number().int().min(1).max(90).default(30) });
